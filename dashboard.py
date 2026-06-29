@@ -106,29 +106,39 @@ current_max_age = int(age_trend['age'].max())
 future_ages = np.arange(current_max_age + 1, current_max_age + tahun_prediksi + 1).reshape(-1, 1)
 future_preds = model.predict(future_ages)
 
+from scipy.ndimage import uniform_filter1d
+
 fig_forecast, ax_forecast = plt.subplots(figsize=(12, 5))
 fig_forecast.patch.set_facecolor('#ffffff')
-ax_forecast.set_facecolor('#f8f9fa')
+ax_forecast.set_facecolor('#ffffff')
 
-# Area chart untuk data aktual
-ax_forecast.fill_between(age_trend['age'], age_trend[metric], alpha=0.2, color='royalblue')
-ax_forecast.plot(age_trend['age'], age_trend[metric], color='royalblue', linewidth=2.5, label='Data Aktual')
+# Scatter data aktual
+ax_forecast.scatter(age_trend['age'], age_trend[metric], 
+                    color='black', alpha=0.6, s=40, zorder=2)
 
-# Area chart untuk prediksi
-ax_forecast.fill_between(future_ages.flatten(), future_preds, alpha=0.15, color='red')
-ax_forecast.plot(future_ages, future_preds, linestyle='--', color='#e94560', linewidth=2.5, label='Prediksi')
+# Garis smooth (moving average)
+y_smooth = uniform_filter1d(age_trend[metric].values, size=3)
+ax_forecast.plot(age_trend['age'], y_smooth, 
+                 color='green', linewidth=2, label='Tren Aktual', zorder=3)
+
+# Garis linear regression (prediksi keseluruhan)
+x_full = np.concatenate([age_trend['age'].values, future_ages.flatten()])
+y_line = model.predict(x_full.reshape(-1, 1))
+ax_forecast.plot(x_full, y_line, 
+                 color='black', linewidth=1.5, label='Garis Prediksi', zorder=3)
 
 # Garis batas
-ax_forecast.axvline(x=current_max_age, color='gray', linestyle=':', linewidth=1.5, label='Batas Prediksi')
+ax_forecast.axvline(x=current_max_age, color='black', linestyle=':', linewidth=1.5, label='Batas Prediksi')
 
 # Styling
-ax_forecast.set_xlabel('Usia', fontsize=12)
-ax_forecast.set_ylabel(metric.replace('_', ' ').title(), fontsize=12)
-ax_forecast.set_title(f'Tren & Prediksi {metric.replace("_", " ").title()} berdasarkan Usia', fontsize=14, fontweight='bold')
-ax_forecast.legend(fontsize=10)
-ax_forecast.grid(True, alpha=0.3, linestyle='--')
 ax_forecast.spines['top'].set_visible(False)
 ax_forecast.spines['right'].set_visible(False)
+ax_forecast.grid(True, alpha=0.2, linestyle='--')
+ax_forecast.set_xlabel('Usia', fontsize=12)
+ax_forecast.set_ylabel(metric.replace('_', ' ').title(), fontsize=12)
+ax_forecast.set_title(f'Tren & Prediksi {metric.replace("_", " ").title()} berdasarkan Usia', 
+                      fontsize=14, fontweight='bold')
+ax_forecast.legend(fontsize=10)
 
 st.pyplot(fig_forecast)
 
