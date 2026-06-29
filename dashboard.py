@@ -107,13 +107,29 @@ future_ages = np.arange(current_max_age + 1, current_max_age + tahun_prediksi + 
 future_preds = model.predict(future_ages)
 
 fig_forecast, ax_forecast = plt.subplots(figsize=(12, 5))
-ax_forecast.plot(age_trend['age'], age_trend[metric], marker='o', color='royalblue', label='Data Aktual')
-ax_forecast.plot(future_ages, future_preds, marker='o', linestyle='--', color='red', label='Prediksi')
-ax_forecast.axvline(x=current_max_age, color='gray', linestyle=':', label='Batas Prediksi')
-ax_forecast.set_xlabel('Usia')
-ax_forecast.set_ylabel(metric.replace('_', ' ').title())
-ax_forecast.set_title(f'Tren & Prediksi {metric.replace("_", " ").title()} berdasarkan Usia')
-ax_forecast.legend()
+fig_forecast.patch.set_facecolor('#ffffff')
+ax_forecast.set_facecolor('#f8f9fa')
+
+# Area chart untuk data aktual
+ax_forecast.fill_between(age_trend['age'], age_trend[metric], alpha=0.2, color='royalblue')
+ax_forecast.plot(age_trend['age'], age_trend[metric], color='royalblue', linewidth=2.5, label='Data Aktual')
+
+# Area chart untuk prediksi
+ax_forecast.fill_between(future_ages.flatten(), future_preds, alpha=0.15, color='red')
+ax_forecast.plot(future_ages, future_preds, linestyle='--', color='#e94560', linewidth=2.5, label='Prediksi')
+
+# Garis batas
+ax_forecast.axvline(x=current_max_age, color='gray', linestyle=':', linewidth=1.5, label='Batas Prediksi')
+
+# Styling
+ax_forecast.set_xlabel('Usia', fontsize=12)
+ax_forecast.set_ylabel(metric.replace('_', ' ').title(), fontsize=12)
+ax_forecast.set_title(f'Tren & Prediksi {metric.replace("_", " ").title()} berdasarkan Usia', fontsize=14, fontweight='bold')
+ax_forecast.legend(fontsize=10)
+ax_forecast.grid(True, alpha=0.3, linestyle='--')
+ax_forecast.spines['top'].set_visible(False)
+ax_forecast.spines['right'].set_visible(False)
+
 st.pyplot(fig_forecast)
 
 st.info(f"📊 Prediksi untuk usia {current_max_age+1} hingga {current_max_age+tahun_prediksi} tahun.")
