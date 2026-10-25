@@ -7,7 +7,7 @@ import streamlit as st
 from sklearn.compose import ColumnTransformer
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
-from sklearn.model_selection import GroupShuffleSplit, StratifiedGroupKFold
+from sklearn.model_selection import train_test_split
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder
 from sqlalchemy import create_engine, text
@@ -53,66 +53,65 @@ def get_engine():
 
 
 @st.cache_data(show_spinner="Mengambil data dari MySQL...")
-def load_data(n_users: int) -> pd.DataFrame:
-    """Ambil sampel PENGGUNA secara acak (bukan N baris pertama).
+def load_data(n_rows: int) -> pd.DataFrame:
+    """Ambil sampel BARIS secara acak dari hasil JOIN 8 tabel.
 
-    Satu pengguna bisa punya banyak baris hasil JOIN, jadi yang disampel
-    adalah user_id-nya supaya data tidak bias ke beberapa pengguna saja.
+    Catatan penting: user_id di tabel `user` ternyata adalah profil demografis
+    (usia x gender x negara), bukan satu orang. Jadi baris sesi dan baris
+    kesehatan harus dicocokkan lewat session_id = record_id (plus user_id),
+    bukan hanya lewat user_id, supaya tidak terjadi ledakan baris (baris x baris).
     RAND(42) dipakai supaya sampelnya selalu sama (reproducible).
     """
     query = text(f"""
         SELECT
-            u.user_id,
+            s.session_id,
             u.age,
             g.gender_name AS gender,
             c.country_name AS country,
-            us.daily_usage_hours,
+            s.daily_usage_hours,
             p.platform_name AS primary_platform,
-            us.num_platforms_used,
+            s.num_platforms_used,
             up.purpose_name AS purpose,
-            us.avg_session_minutes,
-            hb.night_usage,
-            hb.mental_health_score,
+            s.avg_session_minutes,
+            h.night_usage,
+            h.mental_health_score,
             al.level_name AS addiction_level,
-            hb.screen_time_before_sleep
-        FROM user u
+            h.screen_time_before_sleep
+        FROM user_session s
+        JOIN health_behavior h ON s.session_id = h.record_id AND s.user_id = h.user_id
+        JOIN user u ON s.user_id = u.user_id
         JOIN gender g ON u.gender_id = g.gender_id
         JOIN country c ON u.country_id = c.country_id
-        JOIN user_session us ON u.user_id = us.user_id
-        JOIN platform p ON us.platform_id = p.platform_id
-        JOIN usage_purpose up ON us.purpose_id = up.purpose_id
-        JOIN health_behavior hb ON u.user_id = hb.user_id
-        JOIN addiction_level al ON hb.level_id = al.level_id
-        WHERE u.user_id IN (
-            SELECT user_id FROM (
-                SELECT user_id FROM user ORDER BY RAND(42) LIMIT {int(n_users)}
-            ) AS sampled
-        )
-        LIMIT 60000
+        JOIN platform p ON s.platform_id = p.platform_id
+        JOIN usage_purpose up ON s.purpose_id = up.purpose_id
+        JOIN addiction_level al ON h.level_id = al.level_id
+        ORDER BY RAND(42)
+        LIMIT {int(n_rows)}
     """)
     df = pd.read_sql(query, get_engine())
-    # Preprocessing: buang duplikat dan baris yang kosong
-    df = df.drop_duplicates()
-    df = df.dropna(subset=["user_id"] + NUM_COLS + CAT_COLS + [TARGET])
+    # Preprocessing: buang baris kosong dan duplikat (selain kolom id)
+    df = df.dropna(subset=NUM_COLS + CAT_COLS + [TARGET])
+    df = df.drop_duplicates(subset=NUM_COLS + CAT_COLS + [TARGET])
     return df.reset_index(drop=True)
+
+
+@st.cache_data(show_spinner=False)
+def check_join() -> dict:
+    """Cek apakah session_id dan record_id benar-benar sejajar."""
+    query = text("""
+        SELECT
+            (SELECT COUNT(*) FROM user_session) AS n_session,
+            (SELECT COUNT(*) FROM health_behavior) AS n_health,
+            (SELECT COUNT(*) FROM user_session s
+             JOIN health_behavior h
+               ON s.session_id = h.record_id AND s.user_id = h.user_id) AS n_match
+    """)
+    return pd.read_sql(query, get_engine()).iloc[0].to_dict()
 
 
 # ---------------------------------------------------------------
 # Model: Random Forest Classifier
 # ---------------------------------------------------------------
-def split_per_user(df: pd.DataFrame):
-    """Split 80:20 PER PENGGUNA (user yang sama tidak boleh ada di train dan test)."""
-    groups, y = df["user_id"], df[TARGET]
-    try:
-        # 5 fold = 20% test, proporsi kelas dijaga (stratified)
-        sgkf = StratifiedGroupKFold(n_splits=5, shuffle=True, random_state=42)
-        train_idx, test_idx = next(sgkf.split(df, y, groups))
-    except ValueError:
-        gss = GroupShuffleSplit(n_splits=1, test_size=0.2, random_state=42)
-        train_idx, test_idx = next(gss.split(df, y, groups))
-    return train_idx, test_idx
-
-
 def build_model(n_estimators: int, max_depth):
     pre = ColumnTransformer([
         ("num", "passthrough", NUM_COLS),  # Random Forest tidak butuh scaling
@@ -141,16 +140,18 @@ def aggregate_importance(model: Pipeline) -> pd.Series:
 
 
 @st.cache_resource(show_spinner="Melatih Random Forest...")
-def train_model(_df: pd.DataFrame, n_users: int, n_estimators: int, max_depth):
-    # n_users ikut jadi kunci cache, _df tidak di-hash (terlalu berat)
-    train_idx, test_idx = split_per_user(_df)
+def train_model(_df: pd.DataFrame, n_rows: int, n_estimators: int, max_depth):
+    # n_rows ikut jadi kunci cache, _df tidak di-hash (terlalu berat)
     X, y = _df[NUM_COLS + CAT_COLS], _df[TARGET]
 
-    model = build_model(n_estimators, max_depth)
-    model.fit(X.iloc[train_idx], y.iloc[train_idx])
+    # Split 80:20, proporsi kelas dijaga (stratify)
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, test_size=0.2, random_state=42, stratify=y
+    )
 
-    y_test = y.iloc[test_idx]
-    y_pred = model.predict(X.iloc[test_idx])
+    model = build_model(n_estimators, max_depth)
+    model.fit(X_train, y_train)
+    y_pred = model.predict(X_test)
 
     return {
         "model": model,
@@ -163,8 +164,8 @@ def train_model(_df: pd.DataFrame, n_users: int, n_estimators: int, max_depth):
         ).transpose(),
         "classes": list(model.classes_),
         "importance": aggregate_importance(model),
-        "n_train_users": _df.iloc[train_idx]["user_id"].nunique(),
-        "n_test_users": _df.iloc[test_idx]["user_id"].nunique(),
+        "n_train": len(X_train),
+        "n_test": len(X_test),
     }
 
 
@@ -239,9 +240,8 @@ def section_trend(df: pd.DataFrame):
     with col_b:
         n_future = st.slider("Proyeksi sampai berapa usia ke depan?", 1, 10, 3)
 
-    # rata-rata per pengguna dulu, baru rata-rata per usia
-    per_user = df.groupby("user_id").agg(age=("age", "first"), value=(metric, "mean"))
-    age_trend = per_user.groupby("age")["value"].mean().reset_index()
+    # rata-rata metrik untuk tiap usia
+    age_trend = df.groupby("age")[metric].mean().reset_index(name="value")
 
     slope, intercept = np.polyfit(age_trend["age"], age_trend["value"], 1)
     max_age = int(age_trend["age"].max())
@@ -265,22 +265,24 @@ def section_trend(df: pd.DataFrame):
     st.caption("Garis tren adalah regresi linear sederhana per usia (simulasi), bukan time series.")
 
 
-def section_model(df: pd.DataFrame, n_users: int, n_estimators: int, max_depth):
+def section_model(df: pd.DataFrame, n_rows: int, n_estimators: int, max_depth):
     st.subheader("🌲 Prediksi Level Kecanduan dengan Random Forest")
 
-    result = train_model(df, n_users, n_estimators, max_depth)
+    result = train_model(df, n_rows, n_estimators, max_depth)
     model = result["model"]
 
     c1, c2, c3 = st.columns(3)
     c1.metric("Akurasi model", f"{result['accuracy'] * 100:.2f}%")
     c2.metric("Baseline (selalu tebak kelas terbanyak)", f"{result['baseline'] * 100:.2f}%")
-    c3.metric("Pengguna train / test", f"{result['n_train_users']} / {result['n_test_users']}")
+    c3.metric("Data train / test", f"{result['n_train']:,} / {result['n_test']:,}")
 
     if result["accuracy"] >= 0.99:
         st.warning("Akurasi hampir sempurna. Cek apakah addiction_level diturunkan langsung "
                    "dari salah satu fitur (kebocoran label) sebelum mengklaim hasil ini.")
-    st.caption("Split 80:20 dilakukan per pengguna dengan proporsi kelas dijaga, "
-               "jadi pengguna yang sama tidak muncul di data latih dan data uji.")
+    elif result["accuracy"] <= result["baseline"]:
+        st.info("Akurasi belum melampaui baseline. Model belum lebih baik daripada "
+                "selalu menebak kelas terbanyak.")
+    st.caption("Split 80:20 dengan proporsi kelas dijaga (stratified).")
 
     left, right = st.columns([3, 2])
     with left:
@@ -327,7 +329,7 @@ def main():
     apply_style()
 
     st.sidebar.header("Pengaturan")
-    n_users = st.sidebar.slider("Jumlah pengguna sampel", 200, 5000, 1000, step=200)
+    n_rows = st.sidebar.slider("Jumlah baris sampel", 2000, 50000, 10000, step=2000)
     n_estimators = st.sidebar.slider("Jumlah pohon (n_estimators)", 50, 300, 100, step=50)
     depth_option = st.sidebar.select_slider(
         "Kedalaman maksimum pohon", options=[5, 10, 15, 20, "Tanpa batas"], value="Tanpa batas")
@@ -336,16 +338,21 @@ def main():
     st.title("GenZ Social Media Usage Dashboard")
     st.markdown("Data diambil langsung dari database MySQL (`genz_erd`)")
 
-    df = load_data(n_users)
+    df = load_data(n_rows)
 
+    chk = check_join()
+    ratio = chk["n_match"] / max(min(chk["n_session"], chk["n_health"]), 1)
     c1, c2, c3 = st.columns(3)
-    c1.metric("Jumlah baris", f"{len(df):,}")
-    c2.metric("Pengguna unik", f"{df['user_id'].nunique():,}")
+    c1.metric("Baris dipakai", f"{len(df):,}")
+    c2.metric("Baris sesi cocok dengan data kesehatan", f"{int(chk['n_match']):,} dari {int(min(chk['n_session'], chk['n_health'])):,}")
     c3.metric("Kelas level kecanduan", ", ".join(sorted(df[TARGET].unique())))
+    if ratio < 0.9:
+        st.error("session_id dan record_id tampaknya TIDAK sejajar (kecocokan rendah). "
+                 "Hasil model di bawah belum bisa dipercaya, cek isi tabelnya dulu.")
 
     section_trend(df)
     st.divider()
-    section_model(df, n_users, n_estimators, max_depth)
+    section_model(df, n_rows, n_estimators, max_depth)
 
     st.subheader("Raw Data")
     st.dataframe(df.head(1000))
