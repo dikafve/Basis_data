@@ -1,221 +1,355 @@
-from sklearn.neighbors import KNeighborsClassifier
-from sklearn.preprocessing import StandardScaler, LabelEncoder
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import accuracy_score, classification_report
-import streamlit as st
-import pandas as pd
-import matplotlib.pyplot as plt
-import seaborn as sns
-import mysql.connector
 import warnings
-from sklearn.linear_model import LinearRegression
+
+import matplotlib.pyplot as plt
 import numpy as np
-warnings.filterwarnings('ignore')
+import pandas as pd
+import streamlit as st
+from sklearn.compose import ColumnTransformer
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
+from sklearn.model_selection import GroupShuffleSplit, StratifiedGroupKFold
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import OneHotEncoder
+from sqlalchemy import create_engine, text
 
-st.set_page_config(page_title="GenZ Dashboard", page_icon="snowfve.png", layout="wide")
-st.markdown("""
-    <style>
-    .stApp {
-        background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
-    }
-    .stMetric {
-        background-color: rgba(255,255,255,0.05);
-        border-radius: 10px;
-        padding: 15px;
-        border: 1px solid rgba(255,255,255,0.1);
-    }
-    .stSubheader, h1, h2, h3 {
-        color: #F9F6EE !important;
-    }
-    div[data-testid="metric-container"] {
-        background-color: rgba(233,69,96,0.1);
-        border: 1px solid rgba(233,69,96,0.3);
-        border-radius: 10px;
-        padding: 10px;
-    }
-    </style>
-""", unsafe_allow_html=True)
+warnings.filterwarnings("ignore")
 
-conn = mysql.connector.connect(
-    host="127.0.0.1",
-    user="root",
-    password="",
-    database="genz_erd"
-)
+# ---------------------------------------------------------------
+# Konfigurasi fitur (sesuai kolom dataset di database genz_erd)
+# ---------------------------------------------------------------
+TARGET = "addiction_level"
+NUM_COLS = [
+    "age",
+    "daily_usage_hours",
+    "avg_session_minutes",
+    "screen_time_before_sleep",
+    "mental_health_score",
+    "num_platforms_used",
+    "night_usage",
+]
+CAT_COLS = ["gender", "country", "primary_platform", "purpose"]
 
-query = """
-SELECT 
-    u.age,
-    g.gender_name AS gender,
-    c.country_name AS country,
-    us.daily_usage_hours,
-    p.platform_name AS primary_platform,
-    us.num_platforms_used,
-    up.purpose_name AS purpose,
-    us.avg_session_minutes,
-    hb.night_usage,
-    hb.mental_health_score,
-    al.level_name AS addiction_level,
-    hb.screen_time_before_sleep
-FROM user u
-JOIN gender g ON u.gender_id = g.gender_id
-JOIN country c ON u.country_id = c.country_id
-JOIN user_session us ON u.user_id = us.user_id
-JOIN platform p ON us.platform_id = p.platform_id
-JOIN usage_purpose up ON us.purpose_id = up.purpose_id
-JOIN health_behavior hb ON u.user_id = hb.user_id
-JOIN addiction_level al ON hb.level_id = al.level_id
-LIMIT 10000
-"""
-
-df = pd.read_sql(query, conn)
-
-# Header
-st.title("GenZ Social Media Usage Dashboard")
-st.markdown("Data diambil langsung dari database MySQL")
+LABEL = {
+    "age": "Usia",
+    "daily_usage_hours": "Pemakaian harian (jam)",
+    "avg_session_minutes": "Durasi sesi (menit)",
+    "screen_time_before_sleep": "Screen time sebelum tidur (menit)",
+    "mental_health_score": "Skor kesehatan mental",
+    "num_platforms_used": "Jumlah platform",
+    "night_usage": "Pemakaian malam (0/1)",
+    "gender": "Gender",
+    "country": "Negara",
+    "primary_platform": "Platform utama",
+    "purpose": "Tujuan penggunaan",
+}
 
 
-# Forecasting
-st.subheader("🔮 Simulasi Tren Penggunaan Sosmed berdasarkan Usia")
+# ---------------------------------------------------------------
+# Data
+# ---------------------------------------------------------------
+@st.cache_resource
+def get_engine():
+    return create_engine("mysql+mysqlconnector://root:@127.0.0.1:3306/genz_erd")
 
-query_forecast = """
-SELECT age, daily_usage_hours, mental_health_score, avg_session_minutes, screen_time_before_sleep 
-FROM genz_social_media_usage
-"""
-df_forecast = pd.read_sql(query_forecast, conn)
 
-col_a, col_b = st.columns(2)
-with col_a:
-    metric = st.selectbox("Pilih Metrik:", [
-        'daily_usage_hours', 
-        'mental_health_score', 
-        'avg_session_minutes', 
-        'screen_time_before_sleep'
+@st.cache_data(show_spinner="Mengambil data dari MySQL...")
+def load_data(n_users: int) -> pd.DataFrame:
+    """Ambil sampel PENGGUNA secara acak (bukan N baris pertama).
+
+    Satu pengguna bisa punya banyak baris hasil JOIN, jadi yang disampel
+    adalah user_id-nya supaya data tidak bias ke beberapa pengguna saja.
+    RAND(42) dipakai supaya sampelnya selalu sama (reproducible).
+    """
+    query = text(f"""
+        SELECT
+            u.user_id,
+            u.age,
+            g.gender_name AS gender,
+            c.country_name AS country,
+            us.daily_usage_hours,
+            p.platform_name AS primary_platform,
+            us.num_platforms_used,
+            up.purpose_name AS purpose,
+            us.avg_session_minutes,
+            hb.night_usage,
+            hb.mental_health_score,
+            al.level_name AS addiction_level,
+            hb.screen_time_before_sleep
+        FROM user u
+        JOIN gender g ON u.gender_id = g.gender_id
+        JOIN country c ON u.country_id = c.country_id
+        JOIN user_session us ON u.user_id = us.user_id
+        JOIN platform p ON us.platform_id = p.platform_id
+        JOIN usage_purpose up ON us.purpose_id = up.purpose_id
+        JOIN health_behavior hb ON u.user_id = hb.user_id
+        JOIN addiction_level al ON hb.level_id = al.level_id
+        WHERE u.user_id IN (
+            SELECT user_id FROM (
+                SELECT user_id FROM user ORDER BY RAND(42) LIMIT {int(n_users)}
+            ) AS sampled
+        )
+        LIMIT 60000
+    """)
+    df = pd.read_sql(query, get_engine())
+    # Preprocessing: buang duplikat dan baris yang kosong
+    df = df.drop_duplicates()
+    df = df.dropna(subset=["user_id"] + NUM_COLS + CAT_COLS + [TARGET])
+    return df.reset_index(drop=True)
+
+
+# ---------------------------------------------------------------
+# Model: Random Forest Classifier
+# ---------------------------------------------------------------
+def split_per_user(df: pd.DataFrame):
+    """Split 80:20 PER PENGGUNA (user yang sama tidak boleh ada di train dan test)."""
+    groups, y = df["user_id"], df[TARGET]
+    try:
+        # 5 fold = 20% test, proporsi kelas dijaga (stratified)
+        sgkf = StratifiedGroupKFold(n_splits=5, shuffle=True, random_state=42)
+        train_idx, test_idx = next(sgkf.split(df, y, groups))
+    except ValueError:
+        gss = GroupShuffleSplit(n_splits=1, test_size=0.2, random_state=42)
+        train_idx, test_idx = next(gss.split(df, y, groups))
+    return train_idx, test_idx
+
+
+def build_model(n_estimators: int, max_depth):
+    pre = ColumnTransformer([
+        ("num", "passthrough", NUM_COLS),  # Random Forest tidak butuh scaling
+        ("cat", OneHotEncoder(handle_unknown="ignore"), CAT_COLS),
     ])
-with col_b:
-    tahun_prediksi = st.slider("Prediksi sampai berapa usia ke depan?", min_value=1, max_value=20, value=5)
+    rf = RandomForestClassifier(
+        n_estimators=n_estimators,
+        max_depth=max_depth,
+        class_weight="balanced",
+        random_state=42,
+        n_jobs=-1,
+    )
+    return Pipeline([("pre", pre), ("rf", rf)])
 
-age_trend = df_forecast.groupby('age')[metric].mean().reset_index()
 
-X = age_trend['age'].values.reshape(-1, 1)
-y = age_trend[metric].values
-model = LinearRegression()
-model.fit(X, y)
+def aggregate_importance(model: Pipeline) -> pd.Series:
+    """Gabungkan importance kolom one-hot kembali ke fitur aslinya."""
+    names = model.named_steps["pre"].get_feature_names_out()
+    imp = model.named_steps["rf"].feature_importances_
+    agg = {}
+    for name, value in zip(names, imp):
+        base = name.split("__", 1)[1]
+        original = next((c for c in CAT_COLS if base.startswith(c + "_")), base)
+        agg[original] = agg.get(original, 0.0) + value
+    return pd.Series(agg).sort_values(ascending=False)
 
-current_max_age = int(age_trend['age'].max())
-future_ages = np.arange(current_max_age + 1, current_max_age + tahun_prediksi + 1).reshape(-1, 1)
-future_preds = model.predict(future_ages)
 
-from scipy.ndimage import uniform_filter1d
+@st.cache_resource(show_spinner="Melatih Random Forest...")
+def train_model(_df: pd.DataFrame, n_users: int, n_estimators: int, max_depth):
+    # n_users ikut jadi kunci cache, _df tidak di-hash (terlalu berat)
+    train_idx, test_idx = split_per_user(_df)
+    X, y = _df[NUM_COLS + CAT_COLS], _df[TARGET]
 
-fig_forecast, ax_forecast = plt.subplots(figsize=(12, 5))
-fig_forecast.patch.set_facecolor('#ffffff')
-ax_forecast.set_facecolor('#ffffff')
+    model = build_model(n_estimators, max_depth)
+    model.fit(X.iloc[train_idx], y.iloc[train_idx])
 
-# Scatter data aktual
-ax_forecast.scatter(age_trend['age'], age_trend[metric], 
-                    color='black', alpha=0.6, s=40, zorder=2)
+    y_test = y.iloc[test_idx]
+    y_pred = model.predict(X.iloc[test_idx])
 
-# Garis smooth (moving average)
-y_smooth = uniform_filter1d(age_trend[metric].values, size=3)
-ax_forecast.plot(age_trend['age'], y_smooth, 
-                 color='green', linewidth=2, label='Tren Aktual', zorder=3)
+    return {
+        "model": model,
+        "y_test": y_test,
+        "y_pred": y_pred,
+        "accuracy": accuracy_score(y_test, y_pred),
+        "baseline": y_test.value_counts(normalize=True).max(),
+        "report": pd.DataFrame(
+            classification_report(y_test, y_pred, output_dict=True, zero_division=0)
+        ).transpose(),
+        "classes": list(model.classes_),
+        "importance": aggregate_importance(model),
+        "n_train_users": _df.iloc[train_idx]["user_id"].nunique(),
+        "n_test_users": _df.iloc[test_idx]["user_id"].nunique(),
+    }
 
-# Garis linear regression (prediksi keseluruhan)
-x_full = np.concatenate([age_trend['age'].values, future_ages.flatten()])
-y_line = model.predict(x_full.reshape(-1, 1))
-ax_forecast.plot(x_full, y_line, 
-                 color='black', linewidth=1.5, label='Garis Prediksi', zorder=3)
 
-# Garis batas
-ax_forecast.axvline(x=current_max_age, color='black', linestyle=':', linewidth=1.5, label='Batas Prediksi')
+# ---------------------------------------------------------------
+# Tampilan
+# ---------------------------------------------------------------
+def apply_style():
+    st.markdown("""
+        <style>
+        .stApp {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+        }
+        .stMetric {
+            background-color: rgba(255,255,255,0.05);
+            border-radius: 10px;
+            padding: 15px;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .stSubheader, h1, h2, h3 {
+            color: #F9F6EE !important;
+        }
+        div[data-testid="metric-container"] {
+            background-color: rgba(233,69,96,0.1);
+            border: 1px solid rgba(233,69,96,0.3);
+            border-radius: 10px;
+            padding: 10px;
+        }
+        </style>
+    """, unsafe_allow_html=True)
 
-# Styling
-ax_forecast.spines['top'].set_visible(False)
-ax_forecast.spines['right'].set_visible(False)
-ax_forecast.grid(True, alpha=0.2, linestyle='--')
-ax_forecast.set_xlabel('Usia', fontsize=12)
-ax_forecast.set_ylabel(metric.replace('_', ' ').title(), fontsize=12)
-ax_forecast.set_title(f'Tren & Prediksi {metric.replace("_", " ").title()} berdasarkan Usia', 
-                      fontsize=14, fontweight='bold')
-ax_forecast.legend(fontsize=10)
 
-st.pyplot(fig_forecast)
+def plot_importance(importance: pd.Series):
+    imp = importance.sort_values()
+    fig, ax = plt.subplots(figsize=(10, 5))
+    fig.patch.set_facecolor("#ffffff")
+    ax.barh([LABEL.get(i, i) for i in imp.index], imp.values, color="#7d62bd")
+    ax.set_xlabel("Feature importance")
+    ax.set_title("Fitur yang paling berpengaruh terhadap level kecanduan", fontweight="bold")
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
+    ax.grid(True, axis="x", alpha=0.2, linestyle="--")
+    fig.tight_layout()
+    return fig
 
-st.info(f"📊 Prediksi untuk usia {current_max_age+1} hingga {current_max_age+tahun_prediksi} tahun.")
 
-st.divider()
+def plot_confusion(y_true, y_pred, classes):
+    cm = confusion_matrix(y_true, y_pred, labels=classes)
+    fig, ax = plt.subplots(figsize=(5, 4))
+    fig.patch.set_facecolor("#ffffff")
+    ax.imshow(cm, cmap="Purples")
+    ax.set_xticks(range(len(classes)), classes)
+    ax.set_yticks(range(len(classes)), classes)
+    ax.set_xlabel("Prediksi")
+    ax.set_ylabel("Aktual")
+    ax.set_title("Confusion matrix", fontweight="bold")
+    for i in range(len(classes)):
+        for j in range(len(classes)):
+            ax.text(j, i, cm[i, j], ha="center", va="center",
+                    color="white" if cm[i, j] > cm.max() / 2 else "black")
+    fig.tight_layout()
+    return fig
 
-# KNN Classification
-st.subheader("🤖 Prediksi Level Kecanduan dengan KNN")
 
-# Siapkan data buat training
-df_knn = df.dropna(subset=[
-    'daily_usage_hours', 'avg_session_minutes', 
-    'screen_time_before_sleep', 'mental_health_score',
-    'num_platforms_used', 'addiction_level'
-]).copy()
+def section_trend(df: pd.DataFrame):
+    st.subheader("🔮 Simulasi Tren berdasarkan Usia")
+    trend_cols = ["daily_usage_hours", "mental_health_score",
+                  "avg_session_minutes", "screen_time_before_sleep"]
 
-features = ['daily_usage_hours', 'avg_session_minutes', 
-            'screen_time_before_sleep', 'mental_health_score', 
-            'num_platforms_used']
+    col_a, col_b = st.columns(2)
+    with col_a:
+        metric = st.selectbox("Pilih metrik:", trend_cols, format_func=lambda m: LABEL[m])
+    with col_b:
+        n_future = st.slider("Proyeksi sampai berapa usia ke depan?", 1, 10, 3)
 
-X = df_knn[features]
-y = df_knn['addiction_level']
+    # rata-rata per pengguna dulu, baru rata-rata per usia
+    per_user = df.groupby("user_id").agg(age=("age", "first"), value=(metric, "mean"))
+    age_trend = per_user.groupby("age")["value"].mean().reset_index()
 
-# Encode label (addiction_level biasanya berupa teks: Low, Medium, High)
-le = LabelEncoder()
-y_encoded = le.fit_transform(y)
+    slope, intercept = np.polyfit(age_trend["age"], age_trend["value"], 1)
+    max_age = int(age_trend["age"].max())
+    x_full = np.arange(age_trend["age"].min(), max_age + n_future + 1)
 
-# Scaling fitur (penting buat KNN karena dia berbasis jarak)
-scaler = StandardScaler()
-X_scaled = scaler.fit_transform(X)
+    fig, ax = plt.subplots(figsize=(12, 5))
+    fig.patch.set_facecolor("#ffffff")
+    ax.scatter(age_trend["age"], age_trend["value"], color="black", alpha=0.6, s=40,
+               label="Rata-rata aktual", zorder=3)
+    ax.plot(x_full, slope * x_full + intercept, color="#7d62bd", linewidth=2,
+            label="Garis tren (regresi linear)", zorder=2)
+    ax.axvline(max_age, color="black", linestyle=":", linewidth=1.5, label="Batas data")
+    ax.set_xlabel("Usia")
+    ax.set_ylabel(LABEL[metric])
+    ax.set_title(f"Tren {LABEL[metric]} berdasarkan usia", fontweight="bold")
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
+    ax.grid(True, alpha=0.2, linestyle="--")
+    ax.legend()
+    st.pyplot(fig)
+    st.caption("Garis tren adalah regresi linear sederhana per usia (simulasi), bukan time series.")
 
-# Split data
-X_train, X_test, y_train, y_test = train_test_split(
-    X_scaled, y_encoded, test_size=0.2, random_state=42
-)
 
-col_k1, col_k2 = st.columns(2)
-with col_k1:
-    k_value = st.slider("Pilih jumlah K (tetangga):", min_value=1, max_value=20, value=5)
+def section_model(df: pd.DataFrame, n_users: int, n_estimators: int, max_depth):
+    st.subheader("🌲 Prediksi Level Kecanduan dengan Random Forest")
 
-# Training model
-knn = KNeighborsClassifier(n_neighbors=k_value)
-knn.fit(X_train, y_train)
-y_pred = knn.predict(X_test)
-akurasi = accuracy_score(y_test, y_pred)
+    result = train_model(df, n_users, n_estimators, max_depth)
+    model = result["model"]
 
-with col_k2:
-    st.metric("Akurasi Model", f"{akurasi*100:.2f}%")
+    c1, c2, c3 = st.columns(3)
+    c1.metric("Akurasi model", f"{result['accuracy'] * 100:.2f}%")
+    c2.metric("Baseline (selalu tebak kelas terbanyak)", f"{result['baseline'] * 100:.2f}%")
+    c3.metric("Pengguna train / test", f"{result['n_train_users']} / {result['n_test_users']}")
 
-st.markdown("#### 🔍 Coba Prediksi Manual")
-st.caption("Masukkan nilai fitur buat liat prediksi level kecanduannya")
+    if result["accuracy"] >= 0.99:
+        st.warning("Akurasi hampir sempurna. Cek apakah addiction_level diturunkan langsung "
+                   "dari salah satu fitur (kebocoran label) sebelum mengklaim hasil ini.")
+    st.caption("Split 80:20 dilakukan per pengguna dengan proporsi kelas dijaga, "
+               "jadi pengguna yang sama tidak muncul di data latih dan data uji.")
 
-c1, c2, c3, c4, c5 = st.columns(5)
-with c1:
-    input_daily = st.number_input("Daily Usage (jam)", min_value=0.0, max_value=24.0, value=float(df_knn['daily_usage_hours'].mean()))
-with c2:
-    input_session = st.number_input("Avg Session (menit)", min_value=0.0, max_value=300.0, value=float(df_knn['avg_session_minutes'].mean()))
-with c3:
-    input_screen = st.number_input("Screen Time Before Sleep (menit)", min_value=0.0, max_value=300.0, value=float(df_knn['screen_time_before_sleep'].mean()))
-with c4:
-    input_mental = st.number_input("Mental Health Score", min_value=0.0, max_value=10.0, value=float(df_knn['mental_health_score'].mean()))
-with c5:
-    input_platforms = st.number_input("Jumlah Platform", min_value=1, max_value=10, value=int(df_knn['num_platforms_used'].mean()))
+    left, right = st.columns([3, 2])
+    with left:
+        st.pyplot(plot_importance(result["importance"]))
+    with right:
+        st.pyplot(plot_confusion(result["y_test"], result["y_pred"], result["classes"]))
 
-if st.button("Prediksi Sekarang"):
-    input_data = np.array([[input_daily, input_session, input_screen, input_mental, input_platforms]])
-    input_scaled = scaler.transform(input_data)
-    pred_encoded = knn.predict(input_scaled)
-    pred_label = le.inverse_transform(pred_encoded)
-    st.success(f"📌 Prediksi Level Kecanduan: **{pred_label[0]}**")
+    st.markdown("#### 🔍 Coba Prediksi Manual")
+    st.caption("Isi nilai fitur untuk melihat prediksi level kecanduannya")
 
-with st.expander("📈 Lihat Detail Classification Report"):
-    report = classification_report(y_test, y_pred, target_names=le.classes_, output_dict=True)
-    report_df = pd.DataFrame(report).transpose()
-    st.dataframe(report_df.style.format("{:.2f}"))
-    
-# Raw data
-st.subheader("Raw Data")
-st.dataframe(df)
+    values = {}
+    cols = st.columns(4)
+    for i, col in enumerate(NUM_COLS):
+        with cols[i % 4]:
+            if col == "night_usage":
+                values[col] = st.selectbox(LABEL[col], [0, 1], index=1)
+            elif col in ("age", "num_platforms_used"):
+                values[col] = st.number_input(
+                    LABEL[col], min_value=int(df[col].min()), max_value=int(df[col].max()),
+                    value=int(df[col].median()), step=1)
+            else:
+                values[col] = st.number_input(
+                    LABEL[col], min_value=float(df[col].min()), max_value=float(df[col].max()),
+                    value=float(df[col].median()))
+    cols = st.columns(4)
+    for i, col in enumerate(CAT_COLS):
+        with cols[i]:
+            options = sorted(df[col].unique())
+            values[col] = st.selectbox(LABEL[col], options)
+
+    if st.button("Prediksi Sekarang"):
+        row = pd.DataFrame([values])[NUM_COLS + CAT_COLS]
+        pred = model.predict(row)[0]
+        proba = pd.Series(model.predict_proba(row)[0], index=model.classes_, name="Probabilitas")
+        st.success(f"📌 Prediksi Level Kecanduan: **{pred}**")
+        st.bar_chart(proba)
+
+    with st.expander("📈 Lihat Detail Classification Report"):
+        st.dataframe(result["report"].style.format("{:.2f}"))
+
+
+def main():
+    st.set_page_config(page_title="GenZ Dashboard", page_icon="snowfve.png", layout="wide")
+    apply_style()
+
+    st.sidebar.header("Pengaturan")
+    n_users = st.sidebar.slider("Jumlah pengguna sampel", 200, 5000, 1000, step=200)
+    n_estimators = st.sidebar.slider("Jumlah pohon (n_estimators)", 50, 300, 100, step=50)
+    depth_option = st.sidebar.select_slider(
+        "Kedalaman maksimum pohon", options=[5, 10, 15, 20, "Tanpa batas"], value="Tanpa batas")
+    max_depth = None if depth_option == "Tanpa batas" else int(depth_option)
+
+    st.title("GenZ Social Media Usage Dashboard")
+    st.markdown("Data diambil langsung dari database MySQL (`genz_erd`)")
+
+    df = load_data(n_users)
+
+    c1, c2, c3 = st.columns(3)
+    c1.metric("Jumlah baris", f"{len(df):,}")
+    c2.metric("Pengguna unik", f"{df['user_id'].nunique():,}")
+    c3.metric("Kelas level kecanduan", ", ".join(sorted(df[TARGET].unique())))
+
+    section_trend(df)
+    st.divider()
+    section_model(df, n_users, n_estimators, max_depth)
+
+    st.subheader("Raw Data")
+    st.dataframe(df.head(1000))
+
+
+if __name__ == "__main__":
+    main()
