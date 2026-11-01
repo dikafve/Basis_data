@@ -1,0 +1,24 @@
+perbaiki_db.py | 2026-11-01 21:12 | mode: DRY-RUN (tidak ada yang diubah)
+
+=== KONDISI SAAT INI ===
+  user                   315 baris
+  gender                   3 baris
+  country                  7 baris
+  addiction_level          3 baris
+  platform                 5 baris
+  usage_purpose            5 baris
+  health_behavior    100,000 baris
+  user_session       110,000 baris
+  Level kecanduan di health_behavior (%), acuan sumber dalam kurung:
+    Medium   96.18  (58.98)   <-- menyimpang dari sumber
+    Low       0.00  (25.12)   <-- menyimpang dari sumber
+    High      3.82  (15.89)   <-- menyimpang dari sumber
+  Gender di health_behavior (%), acuan sumber dalam kurung:
+    Female    0.00  (48.0)   <-- menyimpang dari sumber
+    Male    100.00  (48.0)   <-- menyimpang dari sumber
+    Other     0.00  (4.0)   <-- menyimpang dari sumber
+  Profil user unik di health_behavior: 97 dari 315
+  Cek model (pipeline dashboard): akurasi 95.48% | baseline 96.16% | balanced 76.02% | recall High 54.95%
+
+Rencana: isi ulang health_behavior dan user_session dengan sampel acak dari CSV sumber (skema tidak berubah).
+DRY-RUN selesai. Tambahkan --apply untuk menjalankan perbaikan (cadangan dibuat otomatis).

@@ -1,0 +1,48 @@
+perbaiki_db.py | 2026-11-01 21:21 | mode: APPLY
+
+=== KONDISI SAAT INI ===
+  user                   315 baris
+  gender                   3 baris
+  country                  7 baris
+  addiction_level          3 baris
+  platform                 5 baris
+  usage_purpose            5 baris
+  health_behavior    100,000 baris
+  user_session       110,000 baris
+  Level kecanduan di health_behavior (%), acuan sumber dalam kurung:
+    Medium   96.18  (58.98)   <-- menyimpang dari sumber
+    Low       0.00  (25.12)   <-- menyimpang dari sumber
+    High      3.82  (15.89)   <-- menyimpang dari sumber
+  Gender di health_behavior (%), acuan sumber dalam kurung:
+    Female    0.00  (48.0)   <-- menyimpang dari sumber
+    Male    100.00  (48.0)   <-- menyimpang dari sumber
+    Other     0.00  (4.0)   <-- menyimpang dari sumber
+  Profil user unik di health_behavior: 97 dari 315
+  Cek model (pipeline dashboard): akurasi 95.48% | baseline 96.16% | balanced 76.02% | recall High 54.95%
+
+Rencana: isi ulang health_behavior dan user_session dengan sampel acak dari CSV sumber (skema tidak berubah).
+  cadangan health_behavior_bak_20261101 sisa percobaan sebelumnya tidak lengkap (0 baris), dibuat ulang
+  cadangan: health_behavior_bak_20261101 (100,000 baris)
+  cadangan: user_session_bak_20261101 (110,000 baris)
+  health_behavior: diisi ulang 100,000 baris
+  user_session: diisi ulang 110,000 baris
+
+=== SESUDAH PERBAIKAN ===
+  user                   315 baris
+  gender                   3 baris
+  country                  7 baris
+  addiction_level          3 baris
+  platform                 5 baris
+  usage_purpose            5 baris
+  health_behavior    100,000 baris
+  user_session       110,000 baris
+  Level kecanduan di health_behavior (%), acuan sumber dalam kurung:
+    Medium   58.97  (58.98)
+    Low      25.16  (25.12)
+    High     15.87  (15.89)
+  Gender di health_behavior (%), acuan sumber dalam kurung:
+    Female   48.15  (48.0)
+    Male     47.91  (48.0)
+    Other     3.94  (4.0)
+  Profil user unik di health_behavior: 315 dari 315
+  Cek model (pipeline dashboard): akurasi 64.54% | baseline 59.26% | balanced 65.07% | recall High 63.20%
