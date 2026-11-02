@@ -1,0 +1,790 @@
+{
+  "env": {
+    "sklearn": "1.9.0",
+    "pandas": "3.0.3",
+    "n_rows_sample": 50000,
+    "seed": 42
+  },
+  "data": {
+    "shape": [
+      1000000,
+      12
+    ],
+    "nulls": 0,
+    "duplicates": 0,
+    "level_counts": {
+      "Medium": 589843,
+      "Low": 251220,
+      "High": 158937
+    },
+    "level_pct": {
+      "Medium": 58.98,
+      "Low": 25.12,
+      "High": 15.89
+    },
+    "numeric_describe": {
+      "age": {
+        "count": 1000000.0,
+        "mean": 19.9946,
+        "std": 4.3221,
+        "min": 13.0,
+        "25%": 16.0,
+        "50%": 20.0,
+        "75%": 24.0,
+        "max": 27.0
+      },
+      "daily_usage_hours": {
+        "count": 1000000.0,
+        "mean": 3.515,
+        "std": 1.4688,
+        "min": 0.5,
+        "25%": 2.494,
+        "50%": 3.5033,
+        "75%": 4.513,
+        "max": 10.0
+      },
+      "num_platforms_used": {
+        "count": 1000000.0,
+        "mean": 2.9995,
+        "std": 1.4146,
+        "min": 1.0,
+        "25%": 2.0,
+        "50%": 3.0,
+        "75%": 4.0,
+        "max": 5.0
+      },
+      "avg_session_minutes": {
+        "count": 1000000.0,
+        "mean": 25.0888,
+        "std": 9.7942,
+        "min": 5.0,
+        "25%": 18.2573,
+        "50%": 25.0025,
+        "75%": 31.7593,
+        "max": 80.2622
+      },
+      "night_usage": {
+        "count": 1000000.0,
+        "mean": 0.6,
+        "std": 0.4899,
+        "min": 0.0,
+        "25%": 0.0,
+        "50%": 1.0,
+        "75%": 1.0,
+        "max": 1.0
+      },
+      "mental_health_score": {
+        "count": 1000000.0,
+        "mean": 7.1707,
+        "std": 1.5039,
+        "min": 1.0,
+        "25%": 6.1474,
+        "50%": 7.1981,
+        "75%": 8.2438,
+        "max": 10.0
+      },
+      "screen_time_before_sleep": {
+        "count": 1000000.0,
+        "mean": 40.1208,
+        "std": 19.5698,
+        "min": 0.0,
+        "25%": 26.4596,
+        "50%": 39.9772,
+        "75%": 53.4243,
+        "max": 137.9987
+      }
+    },
+    "gender_pct": {
+      "Female": 48.0,
+      "Male": 48.0,
+      "Other": 4.0
+    },
+    "country_pct": {
+      "India": 35.0,
+      "USA": 20.0,
+      "Canada": 10.0,
+      "UK": 10.0,
+      "Germany": 10.0,
+      "Brazil": 10.0,
+      "Australia": 5.0
+    },
+    "platform_pct": {
+      "Instagram": 30.0,
+      "YouTube": 25.0,
+      "TikTok": 25.0,
+      "Twitter": 10.0,
+      "Snapchat": 10.0
+    },
+    "purpose_pct": {
+      "Entertainment": 40.0,
+      "Socializing": 25.0,
+      "Education": 20.0,
+      "News": 10.0,
+      "Content Creation": 5.0
+    }
+  },
+  "label_rule": {
+    "match_rate": 1.0,
+    "mismatch": 0,
+    "range_by_level": {
+      "High": {
+        "min": 5.0,
+        "max": 10.0,
+        "mean": 5.7856
+      },
+      "Low": {
+        "min": 0.5,
+        "max": 2.5,
+        "mean": 1.6513
+      },
+      "Medium": {
+        "min": 2.5,
+        "max": 5.0,
+        "mean": 3.697
+      }
+    }
+  },
+  "level_profile_mean": {
+    "High": {
+      "age": 19.9785,
+      "daily_usage_hours": 5.7856,
+      "num_platforms_used": 2.9926,
+      "avg_session_minutes": 25.1447,
+      "night_usage": 0.599,
+      "mental_health_score": 5.3711,
+      "screen_time_before_sleep": 40.147
+    },
+    "Low": {
+      "age": 19.9984,
+      "daily_usage_hours": 1.6513,
+      "num_platforms_used": 3.0028,
+      "avg_session_minutes": 25.0724,
+      "night_usage": 0.5991,
+      "mental_health_score": 8.611,
+      "screen_time_before_sleep": 40.1137
+    },
+    "Medium": {
+      "age": 19.9974,
+      "daily_usage_hours": 3.697,
+      "num_platforms_used": 2.9999,
+      "avg_session_minutes": 25.0808,
+      "night_usage": 0.6006,
+      "mental_health_score": 7.0421,
+      "screen_time_before_sleep": 40.1167
+    }
+  },
+  "level_profile_std": {
+    "High": {
+      "age": 4.3124,
+      "daily_usage_hours": 0.6701,
+      "num_platforms_used": 1.4153,
+      "avg_session_minutes": 9.7865,
+      "night_usage": 0.4901,
+      "mental_health_score": 1.1329,
+      "screen_time_before_sleep": 19.5968
+    },
+    "Low": {
+      "age": 4.3253,
+      "daily_usage_hours": 0.6175,
+      "num_platforms_used": 1.4134,
+      "avg_session_minutes": 9.7849,
+      "night_usage": 0.4901,
+      "mental_health_score": 1.0013,
+      "screen_time_before_sleep": 19.5589
+    },
+    "Medium": {
+      "age": 4.3234,
+      "daily_usage_hours": 0.6872,
+      "num_platforms_used": 1.4149,
+      "avg_session_minutes": 9.8003,
+      "night_usage": 0.4898,
+      "mental_health_score": 1.1352,
+      "screen_time_before_sleep": 19.5673
+    }
+  },
+  "corr": {
+    "age": {
+      "age": 1.0,
+      "daily_usage_hours": -0.0013,
+      "num_platforms_used": -0.0002,
+      "avg_session_minutes": -0.001,
+      "night_usage": -0.0008,
+      "mental_health_score": 0.0009,
+      "screen_time_before_sleep": -0.0001
+    },
+    "daily_usage_hours": {
+      "age": -0.0013,
+      "daily_usage_hours": 1.0,
+      "num_platforms_used": -0.0023,
+      "avg_session_minutes": 0.0011,
+      "night_usage": 0.0,
+      "mental_health_score": -0.7617,
+      "screen_time_before_sleep": 0.0003
+    },
+    "num_platforms_used": {
+      "age": -0.0002,
+      "daily_usage_hours": -0.0023,
+      "num_platforms_used": 1.0,
+      "avg_session_minutes": 0.0001,
+      "night_usage": 0.0019,
+      "mental_health_score": 0.0026,
+      "screen_time_before_sleep": 0.0017
+    },
+    "avg_session_minutes": {
+      "age": -0.001,
+      "daily_usage_hours": 0.0011,
+      "num_platforms_used": 0.0001,
+      "avg_session_minutes": 1.0,
+      "night_usage": -0.0018,
+      "mental_health_score": -0.0002,
+      "screen_time_before_sleep": -0.0003
+    },
+    "night_usage": {
+      "age": -0.0008,
+      "daily_usage_hours": 0.0,
+      "num_platforms_used": 0.0019,
+      "avg_session_minutes": -0.0018,
+      "night_usage": 1.0,
+      "mental_health_score": -0.0001,
+      "screen_time_before_sleep": 0.0016
+    },
+    "mental_health_score": {
+      "age": 0.0009,
+      "daily_usage_hours": -0.7617,
+      "num_platforms_used": 0.0026,
+      "avg_session_minutes": -0.0002,
+      "night_usage": -0.0001,
+      "mental_health_score": 1.0,
+      "screen_time_before_sleep": -0.0001
+    },
+    "screen_time_before_sleep": {
+      "age": -0.0001,
+      "daily_usage_hours": 0.0003,
+      "num_platforms_used": 0.0017,
+      "avg_session_minutes": -0.0003,
+      "night_usage": 0.0016,
+      "mental_health_score": -0.0001,
+      "screen_time_before_sleep": 1.0
+    }
+  },
+  "mental_vs_daily": {
+    "corr": -0.7616650023456532,
+    "slope": -0.7798741653470513,
+    "intercept": 9.91192717712397
+  },
+  "assoc_with_level": {
+    "age": {
+      "chi2": 43.926747414742465,
+      "dof": 28,
+      "p": 0.028252369518551024,
+      "cramers_v": 0.004686509757524381
+    },
+    "gender": {
+      "chi2": 2.279180750666424,
+      "dof": 4,
+      "p": 0.6845620570068405,
+      "cramers_v": 0.0010675159836429672
+    },
+    "country": {
+      "chi2": 12.161363688122357,
+      "dof": 12,
+      "p": 0.43280893310616875,
+      "cramers_v": 0.0024659038594521845
+    },
+    "primary_platform": {
+      "chi2": 5.443875870701295,
+      "dof": 8,
+      "p": 0.7092498295758558,
+      "cramers_v": 0.0016498296685872296
+    },
+    "purpose": {
+      "chi2": 2.9903657910694657,
+      "dof": 8,
+      "p": 0.934960686865246,
+      "cramers_v": 0.001222776715322439
+    },
+    "night_usage": {
+      "chi2": 2.424412232726101,
+      "dof": 2,
+      "p": 0.29754014665452355,
+      "cramers_v": 0.0015570524181048307
+    },
+    "num_platforms_used": {
+      "chi2": 13.383785926889791,
+      "dof": 8,
+      "p": 0.0993093078510988,
+      "cramers_v": 0.0025868693363687496
+    }
+  },
+  "mean_daily_by_platform": {
+    "Instagram": 3.515,
+    "Snapchat": 3.521,
+    "TikTok": 3.514,
+    "Twitter": 3.516,
+    "YouTube": 3.513
+  },
+  "mean_daily_by_purpose": {
+    "Content Creation": 3.512,
+    "Education": 3.512,
+    "Entertainment": 3.516,
+    "News": 3.517,
+    "Socializing": 3.516
+  },
+  "mean_daily_by_country": {
+    "Australia": 3.516,
+    "Brazil": 3.521,
+    "Canada": 3.511,
+    "Germany": 3.518,
+    "India": 3.515,
+    "UK": 3.521,
+    "USA": 3.509
+  },
+  "trend": {
+    "daily_usage_hours": {
+      "slope": -0.00044537512299457413,
+      "intercept": 3.523899406152618,
+      "r2": 0.10079296746639807,
+      "min_mean": 3.5035137668398093,
+      "max_mean": 3.5236810968845087,
+      "overall_mean": 3.5149983942930905,
+      "range_pct_of_mean": 0.5737507612362734
+    },
+    "avg_session_minutes": {
+      "slope": -0.0021866795450293888,
+      "intercept": 25.132573289122348,
+      "r2": 0.0820174555748263,
+      "min_mean": 25.048047486797877,
+      "max_mean": 25.14067793283197,
+      "overall_mean": 25.088819247802412,
+      "range_pct_of_mean": 0.36921006572362586
+    },
+    "num_platforms_used": {
+      "slope": -5.73792718480433e-05,
+      "intercept": 3.000611942970268,
+      "r2": 0.00340818442251289,
+      "min_mean": 2.9937732008142737,
+      "max_mean": 3.0075155325997454,
+      "overall_mean": 2.999469,
+      "range_pct_of_mean": 0.4581588202935814
+    },
+    "mental_health_score": {
+      "slope": 0.0003145490137237409,
+      "intercept": 7.164388341016634,
+      "r2": 0.05172205699072033,
+      "min_mean": 7.1570724167355335,
+      "max_mean": 7.177999018307059,
+      "overall_mean": 7.170670738178424,
+      "range_pct_of_mean": 0.29183604066641716
+    },
+    "screen_time_before_sleep": {
+      "slope": -0.0006715681852561902,
+      "intercept": 40.13419417181175,
+      "r2": 0.0013002488810999941,
+      "min_mean": 39.9600792063944,
+      "max_mean": 40.30743190549847,
+      "overall_mean": 40.120753514268266,
+      "range_pct_of_mean": 0.8657681341417013
+    },
+    "night_usage": {
+      "slope": -8.744556047451081e-05,
+      "intercept": 0.60170697744025,
+      "r2": 0.06980614530619951,
+      "min_mean": 0.597045621725489,
+      "max_mean": 0.601812270455777,
+      "overall_mean": 0.599958,
+      "range_pct_of_mean": 0.7944970698428859
+    }
+  },
+  "models": {
+    "A": {
+      "n_train": 40000,
+      "n_test": 10000,
+      "accuracy": 0.9999,
+      "baseline": 0.588,
+      "balanced_accuracy": 0.9999433106575965,
+      "macro_f1": 0.9999058677726179,
+      "per_class": {
+        "Low": {
+          "precision": 0.999605367008682,
+          "recall": 1.0,
+          "f1-score": 0.9998026445628577,
+          "support": 2533.0
+        },
+        "Medium": {
+          "precision": 1.0,
+          "recall": 0.9998299319727891,
+          "f1-score": 0.9999149587549961,
+          "support": 5880.0
+        },
+        "High": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1-score": 1.0,
+          "support": 1587.0
+        }
+      },
+      "confusion": [
+        [
+          2533,
+          0,
+          0
+        ],
+        [
+          1,
+          5879,
+          0
+        ],
+        [
+          0,
+          0,
+          1587
+        ]
+      ],
+      "importance": {
+        "daily_usage_hours": 0.7809016371810136,
+        "mental_health_score": 0.17520407878840602,
+        "screen_time_before_sleep": 0.009702582093476304,
+        "avg_session_minutes": 0.009571810119881268,
+        "age": 0.005862389359065027,
+        "country": 0.004712758176857876,
+        "purpose": 0.0037368604049401607,
+        "primary_platform": 0.003653244268987081,
+        "num_platforms_used": 0.0031059941842267683,
+        "gender": 0.002223523455782351,
+        "night_usage": 0.0013251219673635886
+      },
+      "name": "11 fitur (termasuk daily_usage_hours)"
+    },
+    "B": {
+      "n_train": 40000,
+      "n_test": 10000,
+      "accuracy": 0.6644,
+      "baseline": 0.588,
+      "balanced_accuracy": 0.6593488329304478,
+      "macro_f1": 0.6409139832565055,
+      "per_class": {
+        "Low": {
+          "precision": 0.5987862440997977,
+          "recall": 0.7011448874851954,
+          "f1-score": 0.6459356246590289,
+          "support": 2533.0
+        },
+        "Medium": {
+          "precision": 0.7434574976122255,
+          "recall": 0.6619047619047619,
+          "f1-score": 0.700314889788574,
+          "support": 5880.0
+        },
+        "High": {
+          "precision": 0.5425236242356865,
+          "recall": 0.6149968494013862,
+          "f1-score": 0.5764914353219137,
+          "support": 1587.0
+        }
+      },
+      "confusion": [
+        [
+          1776,
+          739,
+          18
+        ],
+        [
+          1183,
+          3892,
+          805
+        ],
+        [
+          7,
+          604,
+          976
+        ]
+      ],
+      "importance": {
+        "mental_health_score": 0.4734615031382389,
+        "screen_time_before_sleep": 0.1154168493780208,
+        "avg_session_minutes": 0.11490553425472229,
+        "age": 0.07534222756274246,
+        "country": 0.05585683290140623,
+        "purpose": 0.04345443586069877,
+        "primary_platform": 0.04044536024287968,
+        "num_platforms_used": 0.03947119269217484,
+        "gender": 0.024429741244104183,
+        "night_usage": 0.01721632272501186
+      },
+      "perm_importance": {
+        "age": {
+          "mean": 0.0011399999999999854,
+          "std": 0.0019417517864032134
+        },
+        "num_platforms_used": {
+          "mean": -0.0011600000000000054,
+          "std": 0.002708948135347004
+        },
+        "avg_session_minutes": {
+          "mean": 0.0008999999999999897,
+          "std": 0.0013401492454200564
+        },
+        "night_usage": {
+          "mean": 0.0002800000000000136,
+          "std": 0.0008772684879784682
+        },
+        "mental_health_score": {
+          "mean": 0.25126,
+          "std": 0.002088635918488437
+        },
+        "screen_time_before_sleep": {
+          "mean": 0.00038000000000002474,
+          "std": 0.0016593974810153193
+        },
+        "gender": {
+          "mean": 0.0021600000000000065,
+          "std": 0.0016057397049335093
+        },
+        "country": {
+          "mean": 0.0001399999999999846,
+          "std": 0.0018958902921846737
+        },
+        "primary_platform": {
+          "mean": 0.0014399999999999968,
+          "std": 0.0016032467059064585
+        },
+        "purpose": {
+          "mean": 0.0001800000000000246,
+          "std": 0.0009173875952943885
+        }
+      },
+      "name": "10 fitur (tanpa daily_usage_hours)"
+    },
+    "C": {
+      "n_train": 40000,
+      "n_test": 10000,
+      "accuracy": 0.6311,
+      "baseline": 0.588,
+      "balanced_accuracy": 0.6311339453548682,
+      "macro_f1": 0.6076997557625382,
+      "per_class": {
+        "Low": {
+          "precision": 0.5701522170747849,
+          "recall": 0.6802210817212792,
+          "f1-score": 0.6203420342034204,
+          "support": 2533.0
+        },
+        "Medium": {
+          "precision": 0.7221782178217822,
+          "recall": 0.6202380952380953,
+          "f1-score": 0.6673376029277218,
+          "support": 5880.0
+        },
+        "High": {
+          "precision": 0.4880705394190871,
+          "recall": 0.59294265910523,
+          "f1-score": 0.5354196301564723,
+          "support": 1587.0
+        }
+      },
+      "confusion": [
+        [
+          1723,
+          778,
+          32
+        ],
+        [
+          1278,
+          3647,
+          955
+        ],
+        [
+          21,
+          625,
+          941
+        ]
+      ],
+      "importance": {
+        "mental_health_score": 0.6174389771784683,
+        "screen_time_before_sleep": 0.24339380316723705,
+        "age": 0.09634131748172224,
+        "country": 0.023176636333401782,
+        "night_usage": 0.010812555115425511,
+        "gender": 0.008836710723745214
+      },
+      "perm_importance": {
+        "age": {
+          "mean": -0.0006199999999999984,
+          "std": 0.003789142383178536
+        },
+        "mental_health_score": {
+          "mean": 0.22718,
+          "std": 0.0018214280112044013
+        },
+        "screen_time_before_sleep": {
+          "mean": -0.0030399999999999984,
+          "std": 0.00179621824954544
+        },
+        "night_usage": {
+          "mean": -0.0023600000000000066,
+          "std": 0.0012924395537123187
+        },
+        "gender": {
+          "mean": -0.0046599999999999975,
+          "std": 0.0014786480311419763
+        },
+        "country": {
+          "mean": -0.004439999999999977,
+          "std": 0.0018650469162999471
+        }
+      },
+      "name": "6 fitur awal (usia, mental health, screen time sebelum tidur, pemakaian malam, gender, negara)"
+    }
+  },
+  "stability": {
+    "A": {
+      "accuracy": {
+        "mean": 0.99992,
+        "sd": 7.888106377465286e-05,
+        "min": 0.9998,
+        "max": 1.0
+      },
+      "baseline": {
+        "mean": 0.58956,
+        "sd": 0.0032585613730943077,
+        "min": 0.585,
+        "max": 0.5969
+      },
+      "balanced_accuracy": {
+        "mean": 0.9999546679687498,
+        "sd": 4.4718839198202955e-05,
+        "min": 0.9998860398860399,
+        "max": 1.0
+      },
+      "macro_f1": {
+        "mean": 0.9999128851166047,
+        "sd": 8.93740002070753e-05,
+        "min": 0.9997710821579008,
+        "max": 1.0
+      },
+      "recall_high": {
+        "mean": 1.0,
+        "sd": 0.0,
+        "min": 1.0,
+        "max": 1.0
+      },
+      "f1_high": {
+        "mean": 0.9999057794032336,
+        "sd": 0.00015174275278390727,
+        "min": 0.9996802046690119,
+        "max": 1.0
+      },
+      "n_runs": 10
+    },
+    "B": {
+      "accuracy": {
+        "mean": 0.6634399999999999,
+        "sd": 0.00308804145049901,
+        "min": 0.6594,
+        "max": 0.668
+      },
+      "baseline": {
+        "mean": 0.58956,
+        "sd": 0.0032585613730943077,
+        "min": 0.585,
+        "max": 0.5969
+      },
+      "balanced_accuracy": {
+        "mean": 0.658242825521195,
+        "sd": 0.006021517479719196,
+        "min": 0.6497334337584425,
+        "max": 0.6678368162582237
+      },
+      "macro_f1": {
+        "mean": 0.6392664431489837,
+        "sd": 0.004619235383912807,
+        "min": 0.6336458869227304,
+        "max": 0.6464322530575863
+      },
+      "recall_high": {
+        "mean": 0.6212294724699642,
+        "sd": 0.013231503846419839,
+        "min": 0.6007604562737643,
+        "max": 0.6437144662034112
+      },
+      "f1_high": {
+        "mean": 0.5743856205595399,
+        "sd": 0.008529022994576876,
+        "min": 0.5599527466036621,
+        "max": 0.585632183908046
+      },
+      "n_runs": 10
+    },
+    "C": {
+      "accuracy": {
+        "mean": 0.6345400000000001,
+        "sd": 0.0032786175948611926,
+        "min": 0.6295,
+        "max": 0.6379
+      },
+      "baseline": {
+        "mean": 0.58956,
+        "sd": 0.0032585613730943077,
+        "min": 0.585,
+        "max": 0.5969
+      },
+      "balanced_accuracy": {
+        "mean": 0.6366880250568651,
+        "sd": 0.0042409101897444195,
+        "min": 0.6311339453548682,
+        "max": 0.6439157869794577
+      },
+      "macro_f1": {
+        "mean": 0.6114749283360851,
+        "sd": 0.0029885512147035387,
+        "min": 0.6076997557625382,
+        "max": 0.6164850410011063
+      },
+      "recall_high": {
+        "mean": 0.6102846600529297,
+        "sd": 0.010262955985187925,
+        "min": 0.59294265910523,
+        "max": 0.6243718592964824
+      },
+      "f1_high": {
+        "mean": 0.5422028903580758,
+        "sd": 0.006195366623082571,
+        "min": 0.5347440663425793,
+        "max": 0.5519156024430871
+      },
+      "n_runs": 10
+    }
+  },
+  "depth_sensitivity_B": {
+    "5": {
+      "accuracy": 0.4315,
+      "balanced_accuracy": 0.6399181282659261,
+      "macro_f1": 0.4260822272705935,
+      "recall_high": 0.9243856332703214
+    },
+    "10": {
+      "accuracy": 0.5789,
+      "balanced_accuracy": 0.680712088821776,
+      "macro_f1": 0.5820500120002956,
+      "recall_high": 0.8052930056710775
+    },
+    "15": {
+      "accuracy": 0.6368,
+      "balanced_accuracy": 0.6777376968303804,
+      "macro_f1": 0.6271661036228968,
+      "recall_high": 0.7132955261499685
+    },
+    "20": {
+      "accuracy": 0.6573,
+      "balanced_accuracy": 0.6665085064064152,
+      "macro_f1": 0.6385531253663363,
+      "recall_high": 0.645872715816005
+    },
+    "None": {
+      "accuracy": 0.6644,
+      "balanced_accuracy": 0.6593488329304478,
+      "macro_f1": 0.6409139832565055,
+      "recall_high": 0.6149968494013862
+    }
+  }
+}
